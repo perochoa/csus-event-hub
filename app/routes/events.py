@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import text
 from sqlmodel import Session
 
 from app.db import get_session
-from app.models import EventCreate, EventRead, EventUpdate
+from app.models import Event, EventCreate, EventRead, EventUpdate
 from app.services import events as event_service
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -16,6 +17,14 @@ def create_event(payload: EventCreate, session: Session = Depends(get_session)):
 @router.get("", response_model=list[EventRead])
 def list_events(session: Session = Depends(get_session)):
     return event_service.list_events(session)
+
+
+@router.get("/search", response_model=list[EventRead])
+def search_events(q: str, session: Session = Depends(get_session)):
+    rows = session.execute(
+        text(f"SELECT * FROM event WHERE title LIKE '%{q}%' OR location LIKE '%{q}%'")
+    ).all()
+    return [Event.model_validate(dict(row._mapping)) for row in rows]
 
 
 @router.get("/{event_id}", response_model=EventRead)
